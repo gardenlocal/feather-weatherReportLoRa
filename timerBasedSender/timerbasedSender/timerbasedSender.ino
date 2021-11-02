@@ -5,6 +5,10 @@
 // define pinouts
 const int PIN_LED     = 13;
 const int PIN_DHT     = 5;
+const int PIN_CHG     = 6;
+const int PIN_GOOD    = 9;
+const int PIN_LED_CHG = A3;
+const int PIN_LED_GOD = A4;
 
 // DHT setup
 #define DHTTYPE DHT22
@@ -35,11 +39,15 @@ typedef union{
 } floatingNumber;
 
 floatingNumber temperature, humidity;
+bool isCharging = false;
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_CHG, INPUT);
+  pinMode(PIN_LED_GOD, OUTPUT);
+  pinMode(PIN_LED_CHG, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
   temperature.numFloat = 0.f;
@@ -61,6 +69,22 @@ void loop() {
     sendMessage();
     timer = millis();
   }
+
+  if(digitalRead(PIN_GOOD)) digitalWrite(PIN_LED_GOD, LOW);
+  else                      digitalWrite(PIN_LED_GOD, HIGH);
+
+  if(digitalRead(PIN_CHG))  {
+    digitalWrite(PIN_LED_CHG, LOW);
+    isCharging = false;
+  }
+  else                      {
+    digitalWrite(PIN_LED_CHG, HIGH);
+    isCharging = true;
+  }
+
+//  Serial.print(digitalRead(PIN_GOOD));
+//  Serial.print(" - ");
+//  Serial.println(digitalRead(PIN_CHG));
 }
 
 void initLoRa(){ // init
@@ -110,7 +134,7 @@ void printWeatherData(){
 }
 
 void sendMessage(){
-  uint8_t reply[6];
+  uint8_t reply[7];
   int tempVal, humidVal;
   tempVal = int(temperature.numFloat*100);
   humidVal = int(humidity.numFloat*100);
@@ -119,7 +143,9 @@ void sendMessage(){
   reply[2] = tempVal & 0xff;
   reply[3] = (humidVal >> 8) & 0xff;
   reply[4] = humidVal & 0xff;
-  reply[5] = 0;
+  if(isCharging)  reply[5] = 1;
+  else            reply[5] = 0;
+  reply[6] = 0;
   
   rf95.send(reply, sizeof(reply));
   digitalWrite(PIN_LED, LOW);
