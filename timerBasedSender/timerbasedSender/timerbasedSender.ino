@@ -7,8 +7,8 @@ const int PIN_LED     = 13;
 const int PIN_DHT     = 5;
 const int PIN_CHG     = 6;
 const int PIN_GOOD    = 9;
-const int PIN_LED_CHG = A3;
-const int PIN_LED_GOD = A4;
+const int PIN_LED_CHG = 11;
+const int PIN_LED_GOD = 12;
 
 // DHT setup
 #define DHTTYPE DHT22
@@ -77,7 +77,7 @@ void loop() {
     digitalWrite(PIN_LED_CHG, LOW);
     isCharging = false;
   }
-  else                      {
+  else {
     digitalWrite(PIN_LED_CHG, HIGH);
     isCharging = true;
   }
