@@ -56,7 +56,7 @@ typedef union {
 floatingNumber temperature, humidity;
 uint16Number co2, soil;
 bool isCharging = false;
-bool isFogOn = false;
+bool bFogOn = false;
 
 void pinSetup(){
   pinMode(PIN_LED, OUTPUT);
@@ -106,6 +106,30 @@ void getSoilData(){
   soil.numBigInt = digitalRead(PIN_SOIL_READ);
 
   digitalWrite(PIN_SOIL_VCC, LOW);
+}
+
+void receivecMessage(){
+  if(rf95.available()){
+    uint8_t recvBufferLen = sizeof(recvBuffer);
+
+    if(rf95.recv(recvBuffer, &recvBufferLen)){
+      digitalWrite(PIN_LED, HIGH);
+
+      if(recvBuffer[0] == '/'){
+        if(recvBuffer[1] == 'F'){
+          if(recvBuffer[2] == '1') {    // FOG ON
+            bFogOn = true;
+          } else { // FOG OFF
+            bFogOn = false;
+          }
+        }
+      }
+    }
+
+    digitalWrite(PIN_LED, LOW);
+  } else {
+    // not recv
+  }
 }
 
 void sendMessage() {
@@ -181,7 +205,7 @@ void loop() {
   }
 
   // fog control
-  if (isFogOn)    digitalWrite(PIN_SOLENOID, HIGH);
+  if (bFogOn)    digitalWrite(PIN_SOLENOID, HIGH);
   else            digitalWrite(PIN_SOLENOID, LOW);
 
   //  Serial.print(digitalRead(PIN_GOOD));
