@@ -10,3 +10,37 @@
 ## dependencies
 - [sensirion I2C SCD4X library](https://github.com/Sensirion/arduino-i2c-scd4x)
 - [radiohead arduino library](https://www.airspayce.com/mikem/arduino/RadioHead/index.html)
+
+## LoRa PROTOCOL
+
+### rPi -> feather
+``` C++
+[0] '/'
+[1] DEVICE_ID
+[2] 'F'  // run fog
+[3] '1'  // 1 : run - 1 : off
+[4] '\0'
+```
+
+### feather -> rPi
+
+``` c++
+//uint8_t reply[17];
+reply[0] = '/';
+reply[1] = DEVICE_ID;               // device ID. int? byte? hmm...
+reply[2] = temperature.numBin[0];   // 32bit float bin
+reply[3] = temperature.numBin[1];
+reply[4] = temperature.numBin[2];
+reply[5] = temperature.numBin[3];
+reply[6] = humidity.numBin[0];      // 32bit float bin
+reply[7] = humidity.numBin[1];
+reply[8] = humidity.numBin[2];
+reply[9] = humidity.numBin[3];
+reply[10] = co2.numBin[0];          // 16bit int bin
+reply[11] = co2.numBin[1];
+reply[12] = soil.numBin[0];
+reply[13] = soil.numBin[1];
+if (isCharging) reply[14] = 1;      // chargning status bin
+else            reply[15] = 0;
+reply[16] = 0;
+```
