@@ -17,7 +17,8 @@ const int PIN_GOOD    = 9;    // READ BATT-GOOD
 const int PIN_SOLENOID = 10;  // SOLENOID CONTROL PIN OUT
 const int PIN_LED_CHG = 11;   // CHARGE LED OUT
 const int PIN_LED_GOOD = 12;  // BATT-GOOD LED OUT
-
+const int PIN_SOIL_VCC = A4;  // SOIL VCC
+const int PIN_SOIL_READ = 5;  // SOIL READ
 
 // LoRa message/buffer setup
 const int REQ_MESSAGE_SIZE = 2;
@@ -53,9 +54,22 @@ typedef union {
 } uint16Number;
 
 floatingNumber temperature, humidity;
-uint16Number co2;
+uint16Number co2, soil;
 bool isCharging = false;
 bool isFogOn = false;
+
+void pinSetup(){
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_CHG, INPUT);
+  pinMode(PIN_GOOD, INPUT);
+  pinMode(PIN_SOLENOID, OUTPUT);
+  pinMode(PIN_LED_CHG, OUTPUT);
+  pinMode(PIN_LED_GOOD, OUTPUT);
+  pinMode(PIN_SOIL_VCC, OUTPUT);
+  pinMode(PIN_SOIL_READ, OUTPUT);
+  
+  digitalWrite(PIN_LED, LOW);
+}
 
 void printUint16Hex(uint16_t value) {
   Serial.print(value < 4096 ? "0" : "");
@@ -82,11 +96,20 @@ void printWeatherData() {
   Serial.print("c, \t");
   Serial.print("Humidity:");
   Serial.print(humidity.numFloat);
-  Serial.println(" % ");
+  Serial.println("% \t");
+  Serial.print("SOIL :");
+  Serial.println(soil.numBigInt);
+}
+
+void getSoilData(){
+  digitalWrite(PIN_SOIL_VCC, HIGH);
+  soil.numBigInt = digitalRead(PIN_SOIL_READ);
+
+  digitalWrite(PIN_SOIL_VCC, LOW);
 }
 
 void sendMessage() {
-  uint8_t reply[14];
+  uint8_t reply[17];
   reply[0] = '/';
   reply[1] = DEVICE_ID;               // device ID. 
   reply[2] = temperature.numBin[0];   // 32bit float bin
@@ -99,9 +122,11 @@ void sendMessage() {
   reply[9] = humidity.numBin[3];
   reply[10] = co2.numBin[0];          // 16bit int bin
   reply[11] = co2.numBin[1];
-  if (isCharging) reply[12] = 1;      // chargning status bin
-  else            reply[12] = 0;
-  reply[13] = 0;
+  reply[12] = soil.numBin[0];
+  reply[13] = soil.numBin[1];
+  if (isCharging) reply[14] = 1;      // chargning status bin
+  else            reply[15] = 0;
+  reply[16] = 0;
 
   rf95.send(reply, sizeof(reply));
   digitalWrite(PIN_LED, LOW);
@@ -113,15 +138,12 @@ void sendMessage() {
 void setup() {
   Serial.begin(115200);
 
-  pinMode(PIN_LED, OUTPUT);
-  pinMode(PIN_CHG, INPUT);
-  pinMode(PIN_LED_GOOD, OUTPUT);
-  pinMode(PIN_LED_CHG, OUTPUT);
-  digitalWrite(PIN_LED, LOW);
+  pinSetup();
 
   temperature.numFloat = 0.f;
   humidity.numFloat = 0.f;
   co2.numBigInt = 0;
+  soil.numBigInt = 0;
 
   delay(1000);
   Serial.println("BOOTING....");
@@ -136,8 +158,10 @@ void loop() {
   char errorMessage[256];
 
   if (millis() - timerReadSensor > 5000) {
+    getSoilData();
     getWeatherData();
     printWeatherData();
+    
     sendMessage();          // send radio message
     timerReadSensor = millis();
   }
@@ -164,8 +188,6 @@ void loop() {
   //  Serial.print(" - ");
   //  Serial.println(digitalRead(PIN_CHG));
 }
-
-
 
 void initSCD40() {
   Wire.begin();
