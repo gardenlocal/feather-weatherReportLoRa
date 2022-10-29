@@ -14,8 +14,10 @@ const uint8_t DEVICE_ID = 1;
 const int PIN_LED     = 13;
 const int PIN_CHG     = 6;    // READ CHARGE
 const int PIN_GOOD    = 9;    // READ BATT-GOOD
+const int PIN_SOLENOID = 10;  // SOLENOID CONTROL PIN OUT
 const int PIN_LED_CHG = 11;   // CHARGE LED OUT
 const int PIN_LED_GOOD = 12;  // BATT-GOOD LED OUT
+
 
 // LoRa message/buffer setup
 const int REQ_MESSAGE_SIZE = 2;
@@ -53,6 +55,7 @@ typedef union {
 floatingNumber temperature, humidity;
 uint16Number co2;
 bool isCharging = false;
+bool isFogOn = false;
 
 void printUint16Hex(uint16_t value) {
   Serial.print(value < 4096 ? "0" : "");
@@ -153,10 +156,16 @@ void loop() {
     isCharging = true;
   }
 
+  // fog control
+  if (isFogOn)    digitalWrite(PIN_SOLENOID, HIGH);
+  else            digitalWrite(PIN_SOLENOID, LOW);
+
   //  Serial.print(digitalRead(PIN_GOOD));
   //  Serial.print(" - ");
   //  Serial.println(digitalRead(PIN_CHG));
 }
+
+
 
 void initSCD40() {
   Wire.begin();
