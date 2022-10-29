@@ -58,7 +58,7 @@ uint16Number co2, soil;
 bool isCharging = false;
 bool bFogOn = false;
 
-void pinSetup(){
+void pinSetup() {
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_CHG, INPUT);
   pinMode(PIN_GOOD, INPUT);
@@ -67,7 +67,7 @@ void pinSetup(){
   pinMode(PIN_LED_GOOD, OUTPUT);
   pinMode(PIN_SOIL_VCC, OUTPUT);
   pinMode(PIN_SOIL_READ, OUTPUT);
-  
+
   digitalWrite(PIN_LED, LOW);
 }
 
@@ -101,28 +101,29 @@ void printWeatherData() {
   Serial.println(soil.numBigInt);
 }
 
-void getSoilData(){
+void getSoilData() {
   digitalWrite(PIN_SOIL_VCC, HIGH);
   soil.numBigInt = digitalRead(PIN_SOIL_READ);
 
   digitalWrite(PIN_SOIL_VCC, LOW);
 }
 
-void receivecMessage(){
-  if(rf95.available()){
+void receivecMessage() {
+  if (rf95.available()) {
     uint8_t recvBufferLen = sizeof(recvBuffer);
 
-    if(rf95.recv(recvBuffer, &recvBufferLen)){
+    if (rf95.recv(recvBuffer, &recvBufferLen)) {
       digitalWrite(PIN_LED, HIGH);
 
-      if(recvBuffer[0] == '/'){
-        if(recvBuffer[1] == 'F'){
-          if(recvBuffer[2] == '1') {    // FOG ON
-            bFogOn = true;
-          } else { // FOG OFF
-            bFogOn = false;
+      if (recvBuffer[0] == '/') {
+        if (recvBuffer[1] == DEVICE_ID) {   // only receiving device id
+          if (recvBuffer[2] == 'F') {
+            if (recvBuffer[3] == '1') bFogOn = true;
+            else                      bFogOn = false;
+            }
           }
-        }
+        } else {  // if device id is not mine, quit function
+          return;
       }
     }
 
@@ -135,7 +136,7 @@ void receivecMessage(){
 void sendMessage() {
   uint8_t reply[17];
   reply[0] = '/';
-  reply[1] = DEVICE_ID;               // device ID. 
+  reply[1] = DEVICE_ID;               // device ID. int? byte? hmm...
   reply[2] = temperature.numBin[0];   // 32bit float bin
   reply[3] = temperature.numBin[1];
   reply[4] = temperature.numBin[2];
@@ -185,7 +186,7 @@ void loop() {
     getSoilData();
     getWeatherData();
     printWeatherData();
-    
+
     sendMessage();          // send radio message
     timerReadSensor = millis();
   }
