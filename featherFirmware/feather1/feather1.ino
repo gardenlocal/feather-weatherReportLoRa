@@ -1,4 +1,3 @@
-#include <SensirionI2CScd4x.h>    // SCD40 I2C sensor library
 #include <SPI.h>
 #include <RH_RF95.h>
 
@@ -15,10 +14,10 @@ const int PIN_LED     = 13;
 const int PIN_CHG     = 6;    // READ CHARGE
 const int PIN_GOOD    = 9;    // READ BATT-GOOD
 const int PIN_SOLENOID = 10;  // SOLENOID CONTROL PIN OUT
-const int PIN_LED_CHG = 11;   // CHARGE LED OUT
+const int PIN_LED_SOLENOID = 11;   // CHARGE LED OUT
 const int PIN_LED_GOOD = 12;  // BATT-GOOD LED OUT
-const int PIN_SOIL_VCC = A4;  // SOIL VCC
-const int PIN_SOIL_READ = 5;  // SOIL READ
+//const int PIN_SOIL_VCC = A4;  // SOIL VCC
+const int PIN_SOIL_READ = A5;  // SOIL READ
 
 // LoRa message/buffer setup
 const int REQ_MESSAGE_SIZE = 2;
@@ -36,7 +35,6 @@ const float RF95_FREQ = 900.0;
 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
-SensirionI2CScd4x scd4x;
 
 uint64_t timerReadSensor;
 
@@ -54,7 +52,7 @@ typedef union {
 } uint16Number;
 
 floatingNumber temperature, humidity;
-uint16Number co2, soil;
+uint16Number soil;
 bool isCharging = false;
 bool bFogOn = false;
 
@@ -63,34 +61,17 @@ void pinSetup() {
   pinMode(PIN_CHG, INPUT);
   pinMode(PIN_GOOD, INPUT);
   pinMode(PIN_SOLENOID, OUTPUT);
-  pinMode(PIN_LED_CHG, OUTPUT);
+  pinMode(PIN_LED_SOLENOID, OUTPUT);
   pinMode(PIN_LED_GOOD, OUTPUT);
-  pinMode(PIN_SOIL_VCC, OUTPUT);
-  pinMode(PIN_SOIL_READ, OUTPUT);
+//  pinMode(PIN_SOIL_VCC, OUTPUT);
+//  pinMode(PIN_SOIL_READ, OUTPUT);
 
   digitalWrite(PIN_LED, LOW);
 }
 
-void printUint16Hex(uint16_t value) {
-  Serial.print(value < 4096 ? "0" : "");
-  Serial.print(value < 256 ? "0" : "");
-  Serial.print(value < 16 ? "0" : "");
-  Serial.print(value, HEX);
-}
-
-void printSerialNumber(uint16_t serial0, uint16_t serial1, uint16_t serial2) {
-  Serial.print("Serial: 0x");
-  printUint16Hex(serial0);
-  printUint16Hex(serial1);
-  printUint16Hex(serial2);
-  Serial.println();
-}
 
 // print sensor value to serial monitor
 void printWeatherData() {
-  Serial.print("CO2:");
-  Serial.print(co2.numBigInt);
-  Serial.print("\t");
   Serial.print("Temperature:");
   Serial.print(temperature.numFloat);
   Serial.print("c, \t");
@@ -102,10 +83,11 @@ void printWeatherData() {
 }
 
 void getSoilData() {
-  digitalWrite(PIN_SOIL_VCC, HIGH);
-  soil.numBigInt = digitalRead(PIN_SOIL_READ);
+//  digitalWrite(PIN_SOIL_VCC, HIGH);
+    soil.numBigInt = analogRead(PIN_SOIL_READ);
+//  soil.numBigInt = millis();
 
-  digitalWrite(PIN_SOIL_VCC, LOW);
+//  digitalWrite(PIN_SOIL_VCC, LOW);
 }
 
 void receivecMessage() {
@@ -120,10 +102,10 @@ void receivecMessage() {
           if (recvBuffer[2] == 'F') {
             if (recvBuffer[3] == '1') bFogOn = true;
             else                      bFogOn = false;
-            }
           }
-        } else {  // if device id is not mine, quit function
-          return;
+        }
+      } else {  // if device id is not mine, quit function
+        return;
       }
     }
 
@@ -134,24 +116,23 @@ void receivecMessage() {
 }
 
 void sendMessage() {
-  uint8_t reply[17];
+  uint8_t reply[15];
   reply[0] = '/';
-  reply[1] = DEVICE_ID;               // device ID. int? byte? hmm...
-  reply[2] = temperature.numBin[0];   // 32bit float bin
-  reply[3] = temperature.numBin[1];
-  reply[4] = temperature.numBin[2];
-  reply[5] = temperature.numBin[3];
-  reply[6] = humidity.numBin[0];      // 32bit float bin
-  reply[7] = humidity.numBin[1];
-  reply[8] = humidity.numBin[2];
-  reply[9] = humidity.numBin[3];
-  reply[10] = co2.numBin[0];          // 16bit int bin
-  reply[11] = co2.numBin[1];
-  reply[12] = soil.numBin[0];
-  reply[13] = soil.numBin[1];
-  if (isCharging) reply[14] = 1;      // chargning status bin
-  else            reply[15] = 0;
-  reply[16] = 0;
+  reply[1] = 'R'; // report packet
+  reply[2] = DEVICE_ID;               // device ID. int? byte? hmm...
+  reply[3] = temperature.numBin[0];   // 32bit float bin
+  reply[4] = temperature.numBin[1];
+  reply[5] = temperature.numBin[2];
+  reply[6] = temperature.numBin[3];
+  reply[7] = humidity.numBin[0];      // 32bit float bin
+  reply[8] = humidity.numBin[1];
+  reply[9] = humidity.numBin[2];
+  reply[10] = humidity.numBin[3];
+  reply[11] = soil.numBin[0];         // 16bit int bin
+  reply[12] = soil.numBin[1];
+  if (isCharging) reply[13] = 1;      // chargning status bin
+  else            reply[13] = 0;
+  reply[14] = 0;
 
   rf95.send(reply, sizeof(reply));
   digitalWrite(PIN_LED, LOW);
@@ -167,13 +148,11 @@ void setup() {
 
   temperature.numFloat = 0.f;
   humidity.numFloat = 0.f;
-  co2.numBigInt = 0;
   soil.numBigInt = 0;
 
   delay(1000);
   Serial.println("BOOTING....");
 
-  initSCD40();    // init SCD I2C sensor
   initLoRa();     // init LoRa
   timerReadSensor = millis(); // init timer stamp
 }
@@ -189,66 +168,30 @@ void loop() {
 
     sendMessage();          // send radio message
     timerReadSensor = millis();
+    bFogOn = !bFogOn;
   }
 
   // checking batt status and LED out
   if (digitalRead(PIN_GOOD)) digitalWrite(PIN_LED_GOOD, LOW);
   else                      digitalWrite(PIN_LED_GOOD, HIGH);
 
-  // checing batt charging status and LED out
-  if (digitalRead(PIN_CHG))  {
-    digitalWrite(PIN_LED_CHG, LOW);
-    isCharging = false;
-  }
-  else {
-    digitalWrite(PIN_LED_CHG, HIGH);
-    isCharging = true;
-  }
+  if(digitalRead(PIN_CHG))  isCharging = false;
+  else                      isCharging = true;
+
 
   // fog control
-  if (bFogOn)    digitalWrite(PIN_SOLENOID, HIGH);
-  else            digitalWrite(PIN_SOLENOID, LOW);
+  if (bFogOn)    {
+    digitalWrite(PIN_SOLENOID, HIGH);
+    digitalWrite(PIN_LED_SOLENOID, HIGH);
+  }
+  else {
+    digitalWrite(PIN_SOLENOID, LOW);
+    digitalWrite(PIN_LED_SOLENOID, LOW);
+  }
 
   //  Serial.print(digitalRead(PIN_GOOD));
   //  Serial.print(" - ");
   //  Serial.println(digitalRead(PIN_CHG));
-}
-
-void initSCD40() {
-  Wire.begin();
-
-  scd4x.begin(Wire);
-  uint16_t error;
-  char errorMessage[256];
-
-  // stop potentially previously started measurement
-  error = scd4x.stopPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error trying to execute stopPeriodicMesurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
-
-  uint16_t serial0;
-  uint16_t serial1;
-  uint16_t serial2;
-  error = scd4x.getSerialNumber(serial0, serial1, serial2);
-  if (error) {
-    Serial.print("Error trying to execute getSerialNumber");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  } else {
-    printSerialNumber(serial0, serial1, serial2);
-  }
-
-  // start Measurement
-  error = scd4x.startPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error trying to execute startPeriodicMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
-
 }
 
 void initLoRa() { // init
@@ -285,19 +228,8 @@ void initLoRa() { // init
 }
 
 void getWeatherData() {
-  uint16_t error;
-  char errorMessage[256];
+  // dump demo
+  temperature.numFloat = millis() / 1000;
+  humidity.numFloat = millis() / 500;
 
-  // readMeasurement
-  error = scd4x.readMeasurement(co2.numBigInt, temperature.numFloat, humidity.numFloat);
-  if (error) {
-    Serial.print("Error trying to execute readMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  } else if (co2.numBigInt == 0) {
-    Serial.println("Invalid sample detected, skipping.");
-  } else {
-    printWeatherData();
-  }
-  digitalWrite(PIN_LED, HIGH);
 }
