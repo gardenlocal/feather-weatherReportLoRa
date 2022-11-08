@@ -8,7 +8,7 @@
 ![sparkfun gatoe:soil](https://cdn.sparkfun.com//assets/parts/1/3/7/4/5/15272-SparkFun_gator-soil_-_micro-bit_Accessory_Board-01c.jpg)
 
 ## dependencies
-- [sensirion I2C SCD4X library](https://github.com/Sensirion/arduino-i2c-scd4x)
+- [DHT22 library](https://github.com/adafruit/DHT-sensor-library)
 - [radiohead arduino library](https://www.airspayce.com/mikem/arduino/RadioHead/index.html)
 
 ## FIRMWARE
