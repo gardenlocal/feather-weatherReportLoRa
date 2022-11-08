@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <RH_RF95.h>
+#include "DHT.h"
 
 // FEATHER 32u4 LoRa I2C PIN
 // https://learn.adafruit.com/adafruit-feather-32u4-radio-with-lora-radio-module/pinouts
@@ -18,6 +19,7 @@ const int PIN_LED_SOLENOID = 11;   // CHARGE LED OUT
 const int PIN_LED_GOOD = 12;  // BATT-GOOD LED OUT
 //const int PIN_SOIL_VCC = A4;  // SOIL VCC
 const int PIN_SOIL_READ = A5;  // SOIL READ
+const int PIN_DHT = 2;         // DHT WEATHER PIN
 
 // LoRa message/buffer setup
 const int REQ_MESSAGE_SIZE = 2;
@@ -35,6 +37,9 @@ const float RF95_FREQ = 900.0;
 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
+// DHT setup
+#define DHTTYPE DHT22
+DHT dht(PIN_DHT, DHTTYPE);
 
 uint64_t timerReadSensor;
 
@@ -63,6 +68,7 @@ void pinSetup() {
   pinMode(PIN_SOLENOID, OUTPUT);
   pinMode(PIN_LED_SOLENOID, OUTPUT);
   pinMode(PIN_LED_GOOD, OUTPUT);
+  pinMode(PIN_DHT, INPUT);
 //  pinMode(PIN_SOIL_VCC, OUTPUT);
 //  pinMode(PIN_SOIL_READ, OUTPUT);
 
@@ -153,6 +159,7 @@ void setup() {
   delay(1000);
   Serial.println("BOOTING....");
 
+  dht.begin();
   initLoRa();     // init LoRa
   timerReadSensor = millis(); // init timer stamp
 }
@@ -229,7 +236,6 @@ void initLoRa() { // init
 
 void getWeatherData() {
   // dump demo
-  temperature.numFloat = millis() / 1000;
-  humidity.numFloat = millis() / 500;
-
+  temperature.numFloat = dht.readTemperature();
+  humidity.numFloat = dht.readHumidity();
 }
