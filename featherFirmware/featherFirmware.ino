@@ -12,14 +12,14 @@ const uint8_t DEVICE_ID = 3;
 
 // define pinouts
 const int PIN_LED     = 13;
-const int PIN_CHG     = 6;    // READ CHARGE
-const int PIN_GOOD    = 9;    // READ BATT-GOOD
-const int PIN_SOLENOID = 10;  // SOLENOID CONTROL PIN OUT
-const int PIN_LED_SOLENOID = 11;   // CHARGE LED OUT
-const int PIN_LED_GOOD = 12;  // BATT-GOOD LED OUT
-//const int PIN_SOIL_VCC = A4;  // SOIL VCC
-const int PIN_SOIL_READ = A5;  // SOIL READ
-const int PIN_DHT = 2;         // DHT WEATHER PIN
+const int PIN_CHG     = 6;    		// READ CHARGE
+const int PIN_GOOD    = 9;    		// READ BATT-GOOD
+const int PIN_SOLENOID = 10;  		// SOLENOID CONTROL PIN OUT
+const int PIN_LED_SOLENOID = 11;	// CHARGE LED OUT
+const int PIN_LED_GOOD = 12;  		// BATT-GOOD LED OUT
+//const int PIN_SOIL_VCC = A4;  	// SOIL VCC
+const int PIN_SOIL_READ = A5;  		// SOIL READ
+const int PIN_DHT = 2;         		// DHT WEATHER PIN
 
 // LoRa message/buffer setup
 const int REQ_MESSAGE_SIZE = 2;
@@ -35,15 +35,17 @@ const int RFM95_RST   = 4;
 const int RFM95_INT   = 7;
 const float RF95_FREQ = 900.0;
 
-// automode, spray(seconds), interval(minutes), run in manual mode
-boolean autoMode = true;
-int spray = 5;        // spray for seconds. default : 5 seconds
-int interval = 60;    // spray interval. default: 60 minutes
-boolean run = false;  // run in manual.  default = false
+// manualMode, spray(seconds), interval(minutes), run in manual mode
+volatile boolean manualMode = false;
+volatile boolean humidMode = true;
+volatile float spray = 5;        	// spray for seconds. default : 5 seconds
+volatile int manualSpray = 5;
+volatile int interval = 1;    	// spray interval. default: 60 minutes
+volatile boolean run = false;  	// run in manual.  default = false
 
 // timer for spray
-uint64_t tLastIntervalCheck;
-uint64_t tLastSprayStart;
+unsigned long tLastIntervalCheck;
+unsigned long tLastSprayStart;
 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
@@ -85,7 +87,6 @@ void pinSetup() {
 	digitalWrite(PIN_LED, LOW);
 }
 
-
 // print sensor value to serial monitor
 void printWeatherData() {
 	Serial.print("Temperature:");
@@ -114,34 +115,42 @@ void receivecMessage() {
 			digitalWrite(PIN_LED, HIGH);
 
 			if (recvBuffer[0] == '/') {
-				if (recvBuffer[1] == DEVICE_ID) {   // only receiving device id
+				if (uint8_t(recvBuffer[1]) == DEVICE_ID) {   // only receiving device id
 					// manual mode
-					if (recvBuffer[2] == 'F') {
-						if (recvBuffer[3] == '1') run = true;
-						else                      run = false;
+					if (recvBuffer[2] == 'R') {
+						if (uint8_t(recvBuffer[3]) == 1) 	run = true;
+						else                      			run = false;
 						Serial.print("running in Manual set to : ");
 						Serial.println(run);
 					}
 					// spray
-					if (recvBuffer[2] == 'M'){
-						if(recvBuffer[3] == '1')	autoMode = false;
-						else						autoMode = true;
-						Serial.print("autoMode set to : ");
-						Serial.println(autoMode);
+					else if (recvBuffer[2] == 'M'){
+						if(uint8_t(recvBuffer[3]) == 1)	manualMode = true;
+						else							manualMode = false;
+						Serial.print("manualMode set to : ");
+						Serial.println(manualMode);
 					}
 
-					if (recvBuffer[2] == 'S'){
-						spray = int(recvBuffer[3]);
+					else if (recvBuffer[2] == 'S'){
+						manualSpray = int(recvBuffer[3]);
 						Serial.print("Spray set to : ");
-						Serial.print(spray);
+						Serial.print(manualSpray);
 						Serial.print(" seconds");
 					}
 
-					if (recvBuffer[2] == 'I'){
+					else if (recvBuffer[2] == 'H'){
+						if(uint8_t(recvBuffer[3]) == 1)		humidMode = true;
+						else 								humidMode = false;
+						Serial.print("humidMode set to : ");
+						Serial.println(humidMode);
+					}
+
+					else if (recvBuffer[2] == 'I'){
 						interval = int(recvBuffer[3]);
 						Serial.print("Interval set to : ");
 						Serial.print(interval);
-						Serial.print(" munites");
+						Serial.println(" munites");
+						tLastIntervalCheck = millis();
 					}
 				} 
 			} else {  // if device id is not mine, quit function
@@ -151,7 +160,6 @@ void receivecMessage() {
 
 		digitalWrite(PIN_LED, LOW);
 	} else {
-		// not recv
 	}
 }
 
@@ -180,7 +188,6 @@ void sendMessage() {
 	printWeatherData();
 }
 
-
 void setup() {
 	Serial.begin(115200);
 
@@ -196,28 +203,37 @@ void setup() {
 	dht.begin();
 	initLoRa();     // init LoRa
 	timerReadSensor = millis(); // init timer stamp
+	tLastIntervalCheck = millis();
 }
 
 void loop() {
 	uint16_t error;
 	char errorMessage[256];
 
-	if(millis() - tLastIntervalCheck > interval*60*1000){
+	if(millis() - tLastIntervalCheck > interval * 60000){
 		Serial.println("interval checked!");
+		
+		tLastIntervalCheck = millis();
 		tLastSprayStart = millis();
+	} else {
+		// tLastSprayStart = 0;
 	}
 
-	if(millis()-tLastSprayStart > spray*1000)	bFogOn = true;
-	else 										bFogOn = false;
+	// Serial.print("millis() : ");
+	// Serial.println(millis());
+	// Serial.print("tLastIntervalCheck : ");
+	// Serial.println(tLastIntervalCheck);
+	// Serial.println(millis() - tLastIntervalCheck);
 
-	if (millis() - timerReadSensor > 5000) {
+
+	if (millis() - timerReadSensor > 10000) {
 		getSoilData();
 		getWeatherData();
 		printWeatherData();
 
 		sendMessage();          // send radio message
 		timerReadSensor = millis();
-		bFogOn = !bFogOn;
+		// bFogOn = !bFogOn;
 	}
 
 	// checking batt status and LED out
@@ -229,28 +245,38 @@ void loop() {
 
 
 	// fog control
-	if(autoMode){
+	if(!manualMode){	// autoMode
+		if(humidMode){	// humidcontrol mode
+			if(millis()-tLastSprayStart < spray*1000)	bFogOn = true;
+			else 										bFogOn = false;
+		} else {
+			if(millis()-tLastSprayStart < manualSpray*1000)	bFogOn = true;
+			else 											bFogOn = false;
+		}
+		
 		if (bFogOn)    {
 			digitalWrite(PIN_SOLENOID, HIGH);
 			digitalWrite(PIN_LED_SOLENOID, HIGH);
-			Serial.println("Fog ON!");
+			// Serial.println("Fog ON!");
 		}
 		else {
 			digitalWrite(PIN_SOLENOID, LOW);
 			digitalWrite(PIN_LED_SOLENOID, LOW);
-			Serial.println("Fog OFF");
+			// Serial.println("Fog OFF");
 		}
 	} else {	// manual mode
 		if(run){
 			digitalWrite(PIN_SOLENOID, HIGH);
 			digitalWrite(PIN_LED_SOLENOID, HIGH);
-			Serial.println("Fog ON!");
+			// Serial.println("Fog ON!");
 		} else {
 			digitalWrite(PIN_SOLENOID, LOW);
 			digitalWrite(PIN_LED_SOLENOID, LOW);
-			Serial.println("Fog OFF");
+			// Serial.println("Fog OFF");
 		}
 	}
+
+	receivecMessage();
 }
 
 void initLoRa() { // init
@@ -290,4 +316,14 @@ void getWeatherData() {
 	// dump demo
 	temperature.numFloat = dht.readTemperature();
 	humidity.numFloat = dht.readHumidity();
+
+	// 30% to 70% --> 10 seconds to 2 seconds
+	spray = constrain(mapFloat(humidity.numFloat, 30.f, 80.f, 10.f, 2.f), 2.f, 10.f);
+	Serial.print("spray seconds from humidity : ");
+	Serial.print(spray);
+	Serial.println(" seconds");
+}
+
+float mapFloat(float x, float in_min, float in_max, float out_min, float out_max){
+	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
