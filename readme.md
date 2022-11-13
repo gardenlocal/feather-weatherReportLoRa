@@ -18,15 +18,22 @@
 ## LoRa PROTOCOL
 
 ### rPi -> feather
-- set manual mode (0 : auto, 1:manual)
+- set manual mode (0 : auto, 1:manual, 2:humid control(default))
 ``` C++
 [0] '/'
 [1] DEVICE_ID	// DEVICE ID (1-N)
 [2] 'M'  // run fog in manual
-[3] '1'  // 1 : manual - 0 : auto
+[3] '1'  // 0:auto, 1: manual
 [4] '\0'
 ```
-
+- set humid control mode ( 1: on - default, 0:off)
+```C++
+[0] '/'
+[1] DEVICE_ID	// DEVICE ID (1-N)
+[2] 'H'  // run fog in manual
+[3] '1'  // 0:off, 1:on
+[4] '\0'
+```
 - set spray in seconds
 ```C++
 [0] '/'
