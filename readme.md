@@ -18,11 +18,39 @@
 ## LoRa PROTOCOL
 
 ### rPi -> feather
+- set manual mode (0 : auto, 1:manual)
 ``` C++
 [0] '/'
 [1] DEVICE_ID
-[2] 'F'  // run fog
-[3] '1'  // 1 : run - 1 : off
+[2] 'M'  // run fog in manual
+[3] '1'  // 1 : manual - 0 : auto
+[4] '\0'
+```
+
+- set spray in seconds
+```C++
+[0] '/'
+[1] DEVICE_ID
+[2] 'S'  // run fog in manual
+[3] byte(5)  // 5 seconds
+[4] '\0'
+```
+
+- set interval in munites
+ ```C++
+[0] '/'
+[1] DEVICE_ID
+[2] 'I'  // run fog in manual
+[3] byte(60)  // 60 minutes
+[4] '\0'
+```
+
+- set force running in manual
+``` C++
+[0] '/'
+[1] DEVICE_ID
+[2] 'F'  // run fog in manual
+[3] '1'  // 1 : run - 0 : off
 [4] '\0'
 ```
 
