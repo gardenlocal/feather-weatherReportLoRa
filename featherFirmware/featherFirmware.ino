@@ -8,7 +8,7 @@
 // SCL 3
 
 // define Machien ID
-const uint8_t DEVICE_ID = 1;
+const uint8_t DEVICE_ID = 3;
 
 // define pinouts
 const int PIN_LED     = 13;
@@ -115,11 +115,35 @@ void receivecMessage() {
 
 			if (recvBuffer[0] == '/') {
 				if (recvBuffer[1] == DEVICE_ID) {   // only receiving device id
+					// manual mode
 					if (recvBuffer[2] == 'F') {
 						if (recvBuffer[3] == '1') run = true;
 						else                      run = false;
+						Serial.print("running in Manual set to : ");
+						Serial.println(run);
 					}
-				}
+					// spray
+					if (recvBuffer[2] == 'M'){
+						if(recvBuffer[3] == '1')	autoMode = false;
+						else						autoMode = true;
+						Serial.print("autoMode set to : ");
+						Serial.println(autoMode);
+					}
+
+					if (recvBuffer[2] == 'S'){
+						spray = int(recvBuffer[3]);
+						Serial.print("Spray set to : ");
+						Serial.print(spray);
+						Serial.print(" seconds");
+					}
+
+					if (recvBuffer[2] == 'I'){
+						interval = int(recvBuffer[3]);
+						Serial.print("Interval set to : ");
+						Serial.print(interval);
+						Serial.print(" munites");
+					}
+				} 
 			} else {  // if device id is not mine, quit function
 				return;
 			}
