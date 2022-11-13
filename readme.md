@@ -21,7 +21,7 @@
 - set manual mode (0 : auto, 1:manual)
 ``` C++
 [0] '/'
-[1] DEVICE_ID
+[1] DEVICE_ID	// DEVICE ID (1-N)
 [2] 'M'  // run fog in manual
 [3] '1'  // 1 : manual - 0 : auto
 [4] '\0'
@@ -31,8 +31,8 @@
 ```C++
 [0] '/'
 [1] DEVICE_ID
-[2] 'S'  // run fog in manual
-[3] byte(5)  // 5 seconds
+[2] 'S'  		// run fog in manual
+[3] byte(5)  	// 5 seconds. DO NOT OVER 255(byte)
 [4] '\0'
 ```
 
@@ -40,8 +40,8 @@
  ```C++
 [0] '/'
 [1] DEVICE_ID
-[2] 'I'  // run fog in manual
-[3] byte(60)  // 60 minutes
+[2] 'I'  		// run fog in manual
+[3] byte(60)  	// 60 minutes. DO NOT OVER 255 (byte)
 [4] '\0'
 ```
 
